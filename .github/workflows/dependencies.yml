@@ -1,0 +1,52 @@
+name: Dependencies
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Каждое воскресенье в полночь
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Update dependencies
+        run: npm update
+        
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: update dependencies'
+          title: 'chore: update dependencies'
+          body: |
+            ## Обновление зависимостей
+            
+            Автоматическое обновление зависимостей проекта.
+            
+            ### Изменения
+            - Обновлены версии пакетов
+            - Проверена совместимость
+            - Обновлены lock-файлы
+            
+            ### Тестирование
+            - [ ] Запущены тесты
+            - [ ] Проверена сборка
+            - [ ] Проверена работа приложения
+            
+            ### Безопасность
+            - [ ] Проверены уязвимости
+            - [ ] Обновлены критические зависимости
+            
+            ### Производительность
+            - [ ] Проверена скорость загрузки
+            - [ ] Проверено использование памяти
+            - [ ] Проверена отзывчивость интерфейса 
