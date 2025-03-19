@@ -1,0 +1,98 @@
+name: Version
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Update version
+        id: update_version
+        run: |
+          # Получаем текущую версию
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          
+          # Определяем тип обновления на основе коммитов
+          if git log -1 --pretty=%B | grep -q "BREAKING CHANGE"; then
+            # Major version bump
+            NEW_VERSION=$(node -p "require('semver').inc('$CURRENT_VERSION', 'major')")
+          elif git log -1 --pretty=%B | grep -q "feat:"; then
+            # Minor version bump
+            NEW_VERSION=$(node -p "require('semver').inc('$CURRENT_VERSION', 'minor')")
+          else
+            # Patch version bump
+            NEW_VERSION=$(node -p "require('semver').inc('$CURRENT_VERSION', 'patch')")
+          fi
+          
+          # Обновляем версию в package.json
+          npm version $NEW_VERSION --no-git-tag-version
+          
+          # Обновляем версию в app.json
+          node -e "
+            const fs = require('fs');
+            const appJson = JSON.parse(fs.readFileSync('./app.json'));
+            appJson.expo.version = '$NEW_VERSION';
+            fs.writeFileSync('./app.json', JSON.stringify(appJson, null, 2));
+          "
+          
+          # Обновляем версию в Android
+          node -e "
+            const fs = require('fs');
+            const buildGradle = fs.readFileSync('./android/app/build.gradle', 'utf8');
+            const updatedBuildGradle = buildGradle.replace(
+              /versionCode \d+/,
+              'versionCode ' + (parseInt(buildGradle.match(/versionCode (\d+)/)[1]) + 1)
+            );
+            fs.writeFileSync('./android/app/build.gradle', updatedBuildGradle);
+          "
+          
+          # Обновляем версию в iOS
+          node -e "
+            const fs = require('fs');
+            const projectPbxproj = fs.readFileSync('./ios/LetsGo.xcodeproj/project.pbxproj', 'utf8');
+            const updatedProjectPbxproj = projectPbxproj.replace(
+              /CURRENT_PROJECT_VERSION = \d+\.\d+\.\d+/g,
+              'CURRENT_PROJECT_VERSION = ' + '$NEW_VERSION'
+            );
+            fs.writeFileSync('./ios/LetsGo.xcodeproj/project.pbxproj', updatedProjectPbxproj);
+          "
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: bump version to ${{ steps.update_version.outputs.new_version }}'
+          title: 'chore: bump version to ${{ steps.update_version.outputs.new_version }}'
+          body: |
+            ## Обновление версии
+            
+            Автоматическое обновление версии приложения.
+            
+            ### Изменения
+            - Новая версия: ${{ steps.update_version.outputs.new_version }}
+            - Обновлен package.json
+            - Обновлен app.json
+            - Обновлен Android build.gradle
+            - Обновлен iOS project.pbxproj
+            
+            ### Проверка
+            - [ ] Проверена новая версия
+            - [ ] Проверены все файлы
+            - [ ] Проверена совместимость
+            - [ ] Проверена сборка 

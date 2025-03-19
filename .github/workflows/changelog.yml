@@ -1,0 +1,48 @@
+name: Changelog
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Generate Changelog
+        uses: TriPSs/conventional-changelog-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version-file: package.json
+          output-file: CHANGELOG.md
+          git-message: 'chore: update changelog'
+          preset: 'angular'
+          tag-prefix: 'v'
+          release-count: 0
+          skip-version: true
+          skip-commit: true
+          skip-tag: true
+          
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: 'chore: update changelog'
+          title: 'chore: update changelog'
+          body: |
+            ## Обновление Changelog
+            
+            Автоматическое обновление файла CHANGELOG.md на основе коммитов.
+            
+            ### Изменения
+            - Добавлены новые изменения
+            - Обновлены версии
+            - Обновлены даты
+            
+            ### Проверка
+            - [ ] Проверена структура changelog
+            - [ ] Проверены ссылки на коммиты
+            - [ ] Проверены версии
+            - [ ] Проверены даты 
